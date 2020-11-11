@@ -13,7 +13,17 @@ library(tidyverse)
 ```
 
 ```{r}
+# Minimalist theme
 theme_set(theme_minimal())
+
+# Viridis color scheme for best visualization and color separation
+options(
+  ggplot2.continuous.color = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_color_discrete = scale_color_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 Read in the data.
@@ -46,7 +56,7 @@ aggregate_df =
   ) 
 ```
 
-Do a prop test for a single city
+Do a prop test for a single city.
 
 ```{r}
 prop.test(
@@ -55,7 +65,7 @@ prop.test(
   broom::tidy()
 ```
 
-Iteration
+Iterate for multiple cities at once.
 
 ```{r}
 results_df = 
@@ -78,5 +88,49 @@ results_df %>%
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
 ```
+
+## Problem 2 
+
+Load and tidy the data.
+```{r}
+lga_df = 
+  tibble(
+    path = list.files("prob_2"),
+  ) %>% 
+  mutate(
+    path = str_c("prob_2/", path),
+    data = map(path, read_csv)
+    ) %>%
+  unnest(data) %>%
+  mutate(path = str_replace(path, "prob_2/", " "),
+         path = str_replace(path, ".csv", " ")) %>%
+  separate(path, into = c("group", "id"), sep = "_") %>%
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week", 
+    names_prefix = "week_", 
+    values_to = "observations"
+  ) %>%
+  mutate(
+    group = str_replace(group, "con", "control"),
+    group = str_replace(group, "exp", "experimental")
+  ) %>%
+  relocate(id) %>%
+  mutate(
+    group = as.factor(group),
+    week = as.numeric(week)
+  )
+```
+
+Create a spaghetti plot showing observations on each subject over time.
+```{r}
+lga_df %>%
+  group_by(id) %>%
+  ggplot(aes(x = week, y = observations, color = id, group = id)) +
+  geom_point() +
+  geom_path() 
+  
+```
+
 
 

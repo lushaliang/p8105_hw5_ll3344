@@ -4,7 +4,7 @@ author: "Lusha Liang"
 output: github_document
 ---
 
-## Problem 1
+## Problem 1: Unsolved Homicides
 
 Load necessary packages.
 
@@ -15,12 +15,27 @@ library(plotly)
 library(patchwork)
 ```
 
+Set ggplot theme. 
+
 ```{r}
 # Minimalist theme
 theme_set(theme_minimal())
 ```
 
 Read in the data.
+```{r}
+homicide_df = 
+  read_csv("./data/homicide_data.csv")
+```
+
+Describe the raw data:
+
+* The homicide data set contains `r nrow(homicide_df)` rows, representing homicides in 50 cities across America and `r ncol(homicide_df)` columns which include information about the homicide. 
+* The information contained about each homicide includes: `r colnames(homicide_df)`. 
+* The column disposition contains three possible outcomes: `r homicide_df %>% pull(disposition) %>% as.factor() %>% levels()`.
+* The dates included range from 2007-2017.
+
+Next, we will create a city_state variable that combines the city and state in one variable. We will then combine the disposition "Closed without arrest" and "Open/No arrest" into one disposition of "unsolved." The remaining "Closed by arrest" homicides will be designated as "solved." 
 
 ```{r}
 homicide_df = 
@@ -38,7 +53,7 @@ homicide_df =
   
 ```
 
-Group by city_state variable and count total and unsolved homicides. 
+We will now group by city_state variable and count total and unsolved homicides. 
 
 ```{r}
 aggregate_df = 
@@ -50,7 +65,7 @@ aggregate_df =
   ) 
 ```
 
-Do a prop test for a single city.
+Now we will perform a prop test for a single city to estimate the proportion of unsolved homicides. 
 
 ```{r}
 prop.test(
@@ -59,7 +74,7 @@ prop.test(
   broom::tidy()
 ```
 
-Iterate for multiple cities at once.
+Next, we will iterate the prop. test for multiple cities at once.
 
 ```{r}
 results_df = 
@@ -73,6 +88,7 @@ results_df =
   select(city_state, estimate, conf.low, conf.high)
 ```
 
+We can plot the estimates and confidence intervals for proportion of unsolved homicides for each city. 
 
 ```{r}
 results_df %>%
@@ -83,9 +99,10 @@ results_df %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
 ```
 
-## Problem 2 
+## Problem 2: Longitudinal Study Data 
 
-Load and tidy the data.
+Load and tidy the data. This involves compiling each spreadsheet into a list while keeping the title of the spreadsheet, since this also contains information about the subject ID and the control vs experimental group. Then to make the dataset tidy we pivot_longer so that the week number and values obtained are in contained in separate columns. 
+
 ```{r}
 lga_df = 
   tibble(
@@ -117,6 +134,7 @@ lga_df =
 ```
 
 Create a spaghetti plot showing observations on each subject over time.
+
 ```{r}
 lga_df %>%
   group_by(id) %>%
@@ -125,18 +143,21 @@ lga_df %>%
   geom_path() +
   scale_colour_viridis_d()
 
-lga_df %>%
-  mutate(text_label = str_c("Study ID: ", id, "\nGroup:", group)) %>%
-  plot_ly(
-    x = ~week, y = ~observations, color = ~id,
-    colors = "viridis", type = "scatter",
-    mode = "line", text = ~text_label
-  )
+# We could also make a plot-ly plot:
+#lga_df %>%
+#   mutate(text_label = str_c("Study ID: ", id, "\nGroup:", group)) %>%
+#   plot_ly(
+#     x = ~week, y = ~observations, color = ~id,
+#     colors = "viridis", type = "scatter",
+#     mode = "line", text = ~text_label
+#   )
 ```
 
 In general, the experimental arm has higher values for the observations. 
 
-## Problem 3
+## Problem 3: Power
+
+First, we will generate 5000 datasets from a normal distribution with n = 30, mean = 0, and standard deviation = 5. Next, we will create a function that outputs the estimate and p value from running a two-sided t-test with the null hypothesis of mu = 0.
 
 ```{r}
 set.seed(1)
@@ -158,6 +179,8 @@ sim_results =
   
 ```
 
+We will now repeat the above process for different means between 1-6. 
+
 ```{r}
 mean_list = 
   list(
@@ -178,6 +201,8 @@ sim_vary_means =
       unnest(estimate_dfs)
 ```
 
+Finally, we will plot the proportions of times the null was rejected versus true mu. The plot shows that as the true mean increases away from 0 (effect size increases), the proportion of times the null was rejected (the power) increases. At an effect size of around 4, the power approaches 1. 
+
 ```{r}
 sim_vary_means %>%
   filter(p.value < 0.05) %>%
@@ -186,8 +211,13 @@ sim_vary_means %>%
   mutate(prop = n/5000) %>%
   ggplot(aes(x = diff_means, y = prop)) +
   geom_line() +
-  geom_point()
+  geom_point() + 
+  xlab("True Means") + 
+  ylab("Proportion rejection")
 ```
+
+Now we will make a plot showing the average estimate of the mean on the y axis and the true value of mu on the x axis. 
+The second plot shows the average estimate of the mean on the y axis only in samples for which the null was rejected and the true value of mu on the x axis. 
 
 ```{r}
 all_means_p = 
@@ -201,7 +231,9 @@ all_means_p =
   ylab("Sample Means") +
   theme(legend.position = "none") + 
   ggtitle("All Means") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  stat_summary(fun = "mean", color = "black")
 
 rejected_means_p =
   sim_vary_means %>%
@@ -215,8 +247,12 @@ rejected_means_p =
   ylab("Sample Means") +
   theme(legend.position = "none") + 
   ggtitle("Rejected Means") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  stat_summary(fun = "mean", color = "black")
 
 all_means_p + rejected_means_p
 ```
+
+The second plot shows that the sample average of mu across tests for which the null is rejected is higher than the true mean for smaller true means but approaches the true mean as the true mean gets larger. This makes sense as almost all samples of true mean 6, for example, will be rejected. However, as we saw in the previous plot, for true mean of 1, only 20% of samples will be rejected and these samples will have a higher mean than 1. As the current plot shows, the mean of rejected samples falls around 2.5 with true mean 0. 
 

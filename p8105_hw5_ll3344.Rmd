@@ -137,10 +137,10 @@ Create a spaghetti plot showing observations on each subject over time.
 
 ```{r}
 lga_df %>%
-  group_by(id) %>%
-  ggplot(aes(x = week, y = observations, color = id, group = id)) +
+  ggplot(aes(x = week, y = observations, color = id)) +
   geom_point() +
   geom_path() +
+  facet_grid(.~group) +
   scale_colour_viridis_d()
 
 # We could also make a plot-ly plot:
@@ -153,7 +153,7 @@ lga_df %>%
 #   )
 ```
 
-In general, the experimental arm has higher values for the observations. 
+In general, the experimental arm has higher values for the observations and seems to increase over time whereas the control arm observations stayed relatively constant over time. This makes sense as most likely the control group was not receiving any intervention. 
 
 ## Problem 3: Power
 
@@ -184,6 +184,7 @@ We will now repeat the above process for different means between 1-6.
 ```{r}
 mean_list = 
   list(
+    "mean_0" = 0,
     "mean_1" = 1,
     "mean_2" = 2,
     "mean_3" = 3,
@@ -193,7 +194,7 @@ mean_list =
   )
 
 sim_vary_means = 
-  tibble(diff_means = c(1, 2, 3, 4, 5, 6)) %>%
+  tibble(diff_means = c(0, 1, 2, 3, 4, 5, 6)) %>%
   mutate(
     output_lists = map(.x = diff_means, ~rerun(5000, sim_mean_p(mean = .x))),
     estimate_dfs = map(output_lists, bind_rows)) %>%
@@ -254,5 +255,5 @@ rejected_means_p =
 all_means_p + rejected_means_p
 ```
 
-The second plot shows that the sample average of mu across tests for which the null is rejected is higher than the true mean for smaller true means but approaches the true mean as the true mean gets larger. This makes sense as almost all samples of true mean 6, for example, will be rejected. However, as we saw in the previous plot, for true mean of 1, only 20% of samples will be rejected and these samples will have a higher mean than 1. As the current plot shows, the mean of rejected samples falls around 2.5 with true mean 0. 
+The second plot shows that for true mean = 0, the rejected values are either significantly larger or smaller than zero but the overall mean is 0. This makes sense as these are the values at the extreme ends of the normal distribution but they are still centered around 0. For smaller true means > 0, the sample average of mu across tests for which the null is rejected is higher than the true mean. However, as the true mean gets larger (and the effect size increases), the power to reject increases to almost 1 and nearly all the samples are rejected. Thus the rejected means and the true means converge. 
 
